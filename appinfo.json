@@ -5,7 +5,9 @@
         "refreshIntrvl": 102,
         "icon": 0,
         "location": 2,
-        "temperature": 1
+        "temperature": 1,
+	"pm25": 3,
+	"pm10": 4
     },
     "capabilities": [
         "location",

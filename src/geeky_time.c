@@ -13,6 +13,8 @@ static TextLayer *time_layer;
 static TextLayer *date_layer;
 static TextLayer *temp_layer;
 static TextLayer *weather_loc_layer;
+static TextLayer *aqi_25_layer;
+static TextLayer *aqi_10_layer;
 static TextLayer *sync_count_layer;
 
 static BitmapLayer *bt_layer;
@@ -43,6 +45,8 @@ enum TupleKey {
   WEATHER_ICON_KEY = 0x0,         // TUPLE_CSTRING
   WEATHER_TEMPERATURE_KEY = 0x1,  // TUPLE_CSTRING
   WEATHER_LOCATION_KEY = 0x2,     // TUPLE_CSTRING
+  AQI_PM25 = 0x3,                 // TUPLE_CSTRING
+  AQI_PM10 = 0x4,                 // TUPLE_CSTRING
   CONFIG_BT_VIBRATE = 0x64,       // TUPLE_CSTRING (100 in decimal)
   CONFIG_DATE_FORMAT = 0x65,      // TUPLE_CSTRING (101 in decimal)
   CONFIG_REFRESH_INTRVL = 0x66    // TUPLE_INTEGER (102 in decimal)
@@ -369,6 +373,8 @@ static void sync_error_callback(DictionaryResult dict_error, AppMessageResult ap
 }
 
 static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tuple, const Tuple* old_tuple, void* context) {
+  static char pm25text[] = "PM2.5: ---";
+  static char pm10text[] = "PM10: ---";
   APP_LOG(APP_LOG_LEVEL_DEBUG, "CallBack. Key=%i", (int)key);
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Callback. Tuple Value=%s", new_tuple->value->cstring);
   
@@ -505,6 +511,16 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
     case WEATHER_LOCATION_KEY:
       text_layer_set_text(weather_loc_layer, new_tuple->value->cstring);
       break;
+    case AQI_PM25:
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "PM25 from JS: %ld", new_tuple->value->int32);
+      snprintf(pm25text, sizeof(pm25text), "PM25: %ld", new_tuple->value->int32);
+      text_layer_set_text(aqi_25_layer, pm25text);
+      break;
+    case AQI_PM10:
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "PM10 from JS: %ld", new_tuple->value->int32);
+      snprintf(pm10text, sizeof(pm10text), "PM10: %ld", new_tuple->value->int32);
+      text_layer_set_text(aqi_10_layer, pm10text);
+      break;
     case CONFIG_BT_VIBRATE:
       if (strcmp(new_tuple->value->cstring, "On") == 0)
       {
@@ -608,7 +624,7 @@ static void init() {
 
   //DATE
   GFont custom_font_date = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_22));
-  date_layer = text_layer_create(GRect(2, 65, 144-2 /* width */, 25 /* 168 max height */));
+  date_layer = text_layer_create(GRect(2, 62, 144-2 /* width */, 25 /* 168 max height */));
   text_layer_set_text_alignment(date_layer, GTextAlignmentCenter);
   text_layer_set_font(date_layer, custom_font_date);
   text_layer_set_background_color(date_layer, GColorClear);
@@ -617,11 +633,11 @@ static void init() {
   layer_add_child(window_layer, text_layer_get_layer(date_layer));
 
   //WEATHER ICON
-  icon_layer = bitmap_layer_create(GRect(5, 90, 60, 60));
+  icon_layer = bitmap_layer_create(GRect(5, 87, 60, 60));
   layer_add_child(window_layer, bitmap_layer_get_layer(icon_layer));
 
   //THERM
-  therm_layer = bitmap_layer_create(GRect(65, 102, 16, 36));
+  therm_layer = bitmap_layer_create(GRect(65, 99, 16, 36));
   therm_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMG_THERM);
   bitmap_layer_set_bitmap(therm_layer, therm_bitmap);
 
@@ -631,7 +647,7 @@ static void init() {
   custom_font_temp_30 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TEMP_30));
   custom_font_temp_40 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TEMP_40));
 
-  temp_layer = text_layer_create(GRect(81, 95, 144-85 /* width */, 55 /* 168 max height */));
+  temp_layer = text_layer_create(GRect(81, 92, 144-85 /* width */, 55 /* 168 max height */));
   text_layer_set_font(temp_layer, custom_font_temp_40);
   text_layer_set_text_alignment(temp_layer, GTextAlignmentCenter);
   text_layer_set_background_color(temp_layer, GColorClear);
@@ -641,7 +657,7 @@ static void init() {
 
   //WEATHER LOCATION
   GFont custom_font_weather_loc = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TINY_10));
-  weather_loc_layer = text_layer_create(GRect(10, 145, 134 /* width */, 18 /* 168 max height */));
+  weather_loc_layer = text_layer_create(GRect(10, 139, 134 /* width */, 12 /* 168 max height */));
   text_layer_set_text_alignment(weather_loc_layer, GTextAlignmentCenter);
   text_layer_set_font(weather_loc_layer, custom_font_weather_loc);
   text_layer_set_background_color(weather_loc_layer, GColorClear);
@@ -649,6 +665,25 @@ static void init() {
 
   layer_add_child(window_layer, text_layer_get_layer(weather_loc_layer));
 
+  //AQI 2,5 LOCATION
+  GFont custom_font_2 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TINY_10));
+  aqi_25_layer = text_layer_create(GRect(9, 150, 59 /* width */, 12 /* 168 max height */));
+  text_layer_set_text_alignment(aqi_25_layer, GTextAlignmentCenter);
+  text_layer_set_font(aqi_25_layer, custom_font_2);
+  text_layer_set_background_color(aqi_25_layer, GColorClear);
+  text_layer_set_text_color(aqi_25_layer, GColorWhite);
+
+  layer_add_child(window_layer, text_layer_get_layer(aqi_25_layer));
+
+  //AQI 10 LOCATION
+  GFont custom_font_3 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TINY_10));
+  aqi_10_layer = text_layer_create(GRect(65, 150, 73 /* width */, 12 /* 168 max height */));
+  text_layer_set_text_alignment(aqi_10_layer, GTextAlignmentCenter);
+  text_layer_set_font(aqi_10_layer, custom_font_2);
+  text_layer_set_background_color(aqi_10_layer, GColorClear);
+  text_layer_set_text_color(aqi_10_layer, GColorWhite);
+
+  layer_add_child(window_layer, text_layer_get_layer(aqi_10_layer));
 
   //TEST DUMMY Stuff
   // text_layer_set_text(bat_perc_layer, "100%");
@@ -692,6 +727,8 @@ static void init() {
     TupletCString(WEATHER_ICON_KEY, "00"),
     TupletCString(WEATHER_TEMPERATURE_KEY, "--"),
     TupletCString(WEATHER_LOCATION_KEY, "Unknown"),
+    TupletCString(AQI_PM25, "--"),
+    TupletCString(AQI_PM10, "--"),
     TupletCString(CONFIG_BT_VIBRATE, bt_vibrate_str),
     TupletCString(CONFIG_DATE_FORMAT, date_format),
     TupletInteger(CONFIG_REFRESH_INTRVL, refresh_interval)
@@ -714,6 +751,8 @@ static void deinit() {
   text_layer_destroy(date_layer);
   text_layer_destroy(temp_layer);
   text_layer_destroy(weather_loc_layer);
+  text_layer_destroy(aqi_25_layer);
+  text_layer_destroy(aqi_10_layer);
   text_layer_destroy(sync_count_layer);
   gbitmap_destroy(comm_bitmap);
   bitmap_layer_destroy(comm_layer);

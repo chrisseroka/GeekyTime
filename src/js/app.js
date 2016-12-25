@@ -18,6 +18,30 @@ function sendToWatchFail(e)
   console.log("Message #" + e.data.transactionId + " sending failed: " + e.error.message);
 }
 
+function getSmogData(callback){
+		var result = {};
+		var req = new XMLHttpRequest();
+		req.open('GET', "http://powietrze.malopolska.pl/_powietrzeapi/api/dane?act=danemiasta&ci_id=01", true);
+		req.onload = function(a,b,c)
+		{
+        if (this.readyState == 4 && this.status == 200) {
+            var response = JSON.parse(this.responseText);
+            var actual = response.dane.actual;
+            var station = null;
+            var i = 0;
+            for(i = 0; i<actual.length; i++){
+                if (actual[i].station_id == 3){ station = actual[i]; }
+            }
+            for(i =0; i <station.details.length; i++){
+                result[station.details[i].o_wskaznik] = station.details[i].o_value;
+            }
+            callback(result);
+        }
+
+		};
+		req.send(null);
+}
+
 function parseWeatherResponse() {
   if (this.readyState == 4) {
     if(this.status == 200) {
@@ -26,6 +50,8 @@ function parseWeatherResponse() {
       var temperature = '--';
       var temperatureC = '--';
       var temperatureF = '--';
+      var pm25 = '25';
+      var pm10 = '10';
       var icon = '00';
       var location = 'Unknown';
       if (response && response.weather && response.weather.length > 0) {
@@ -54,18 +80,30 @@ function parseWeatherResponse() {
       if (response && response.name ) {
         location = response.name;
       }
-      console.log('Icon=' + icon);
-      console.log('Temp=' + temperature);
-      console.log('Temp C=' + temperatureC);
-      console.log('Temp F=' + temperatureF);
-      console.log('Location=' + location);
 
-      var msgId = Pebble.sendAppMessage({
-        "icon":icon,
-        "temperature":temperature.toString(),
-        "location":location}, sendToWatchSuccess, sendToWatchFail);
-      
-      console.log("Sending message to watch ...");
+      getSmogData(function(smogData){
+        pm25 = smogData["pm2.5"];
+        pm10 = smogData["pm10"];
+        
+        console.log('Icon=' + icon);
+        console.log('Temp=' + temperature);
+        console.log('Temp C=' + temperatureC);
+        console.log('Temp F=' + temperatureF);
+        console.log('Location=' + location);
+        console.log('PM25=' + pm25);
+        console.log('PM10=' + pm10);
+
+        var msgId = Pebble.sendAppMessage({
+          "icon":icon,
+          "temperature":temperature.toString(),
+          //"location":location}, sendToWatchSuccess, sendToWatchFail);
+          "location":location,
+          "pm25":pm25,
+          "pm10":pm10}, sendToWatchSuccess, sendToWatchFail);
+        
+        console.log("Sending message to watch ...");
+      });
+
     }
     else
     {
